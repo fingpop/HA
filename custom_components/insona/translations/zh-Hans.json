@@ -1,0 +1,22 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "设备已经配置"
+    },
+    "error": {
+      "cannot_connect": "连接失败",
+      "timeout": "连接超时",
+      "unknown": "未知错误"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "host": "主机地址",
+          "port": "端口号"
+        },
+        "description": "设置您的inSona网关连接。",
+        "title": "inSona网关"
+      }
+    }
+  }
+} 

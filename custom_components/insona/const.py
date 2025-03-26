@@ -1,0 +1,23 @@
+"""inSona网关集成的常量。"""
+
+DOMAIN = "insona"
+DEFAULT_PORT = 8091
+
+# 设备类型
+DEVICE_TYPE_LIGHT = 1984
+DEVICE_TYPE_COVER = 1860 
+DEVICE_TYPE_PANEL = 1218
+DEVICE_TYPE_SENSOR = 1344
+
+# 功能类型
+FUNC_ONOFF = 2
+FUNC_BRIGHTNESS = 3
+FUNC_CTL = 4  # 亮度和色温
+FUNC_HSL = 5  # HSL颜色
+FUNC_PANEL = 9  # 面板
+
+# 控制动作
+ACTION_ONOFF = "onoff"
+ACTION_LEVEL = "level"
+ACTION_CTL = "ctl"
+ACTION_HSL = "hsl" 
