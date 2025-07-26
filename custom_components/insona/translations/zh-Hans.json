@@ -18,5 +18,12 @@
         "title": "inSona网关"
       }
     }
+  },
+  "entity": {
+    "scene": {
+      "insona_scene": {
+        "name": "inSona 场景"
+      }
+    }
   }
-} 
+}

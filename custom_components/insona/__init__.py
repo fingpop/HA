@@ -18,14 +18,15 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, DEFAULT_PORT
 from .gateway import InSonaGateway
+from .scene import InSonaScene
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     Platform.LIGHT,
     Platform.COVER,
-    Platform.BINARY_SENSOR,
     Platform.SENSOR,
+    Platform.SCENE,
 ]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -49,13 +50,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         await gateway.connect()
         await gateway.query_devices()
+        _LOGGER.info("开始查询场景列表")
+        await gateway.query_scenes()
+        _LOGGER.info("场景列表查询完成")
     except (asyncio.TimeoutError, ConnectionRefusedError) as err:
         await gateway.disconnect()
         raise ConfigEntryNotReady(f"无法连接到inSona网关: {err}") from err
     except Exception as err:
         await gateway.disconnect()
-        _LOGGER.exception("设置inSona网关时出错: %s", err)
-        raise ConfigEntryNotReady(f"初始化inSona网关失败: {err}") from err
+        _LOGGER.exception("设置inSona网关时出错，特别是在查询场景时: %s", err)
+        raise ConfigEntryNotReady(f"初始化inSona网关失败，特别是在查询场景时: {err}") from err
     
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = gateway
@@ -79,4 +83,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         gateway = hass.data[DOMAIN].pop(entry.entry_id)
         await gateway.disconnect()
     
-    return unload_ok 
+    return unload_ok

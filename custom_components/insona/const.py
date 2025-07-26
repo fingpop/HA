@@ -20,4 +20,5 @@ FUNC_PANEL = 9  # 面板
 ACTION_ONOFF = "onoff"
 ACTION_LEVEL = "level"
 ACTION_CTL = "ctl"
-ACTION_HSL = "hsl" 
+ACTION_HSL = "hsl"
+ACTION_SCENE = "scene"

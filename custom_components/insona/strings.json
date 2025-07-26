@@ -1,0 +1,28 @@
+{
+  "title": "inSona 网关",
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "host": "主机地址",
+          "port": "端口"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "无法连接到网关",
+      "invalid_auth": "认证失败",
+      "unknown": "未知错误"
+    },
+    "abort": {
+      "already_configured": "设备已配置"
+    }
+  },
+  "entity": {
+    "scene": {
+      "insona_scene": {
+        "name": "inSona 场景"
+      }
+    }
+  }
+}

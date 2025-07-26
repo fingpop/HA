@@ -23,6 +23,9 @@ from .const import (
     ACTION_HSL,
 )
 
+# 场景相关常量
+SCENE_ACTION = "scene"
+
 _LOGGER = logging.getLogger(__name__)
 
 class InSonaGateway:
@@ -39,6 +42,7 @@ class InSonaGateway:
         
         self.devices = {}
         self.rooms = {}
+        self.scenes = {}  # 添加场景列表
         self.status_listeners = {}
         self._disconnect_callbacks = set()
         self._read_task = None
@@ -52,8 +56,9 @@ class InSonaGateway:
             return
             
         try:
+            # 增加缓冲区大小到 1MB
             self.reader, self.writer = await asyncio.open_connection(
-                self.host, self.port
+                self.host, self.port, limit=1024*1024
             )
             self.connected = True
             
@@ -134,6 +139,14 @@ class InSonaGateway:
                 
                 # 将响应放入队列
                 await self._response_queue.put(response)
+            except asyncio.LimitOverrunError as err:
+                _LOGGER.error("读取数据超出缓冲区限制: %s", err)
+                # 尝试读取剩余数据以清空缓冲区
+                try:
+                    await self.reader.readexactly(err.consumed)
+                except Exception as e:
+                    _LOGGER.error("清空缓冲区时出错: %s", e)
+                await asyncio.sleep(1)
             except asyncio.CancelledError:
                 break
             except Exception as err:
@@ -177,6 +190,7 @@ class InSonaGateway:
                 uuid = response.get("uuid")
                 
                 # 处理s.query方法的响应，用于初始化设备和房间信息
+                _LOGGER.debug("收到s.query响应: %s", response)
                 if method == "s.query" and response.get("result") == "ok":
                     # 解析房间信息
                     for room in response.get("rooms", []):
@@ -204,6 +218,10 @@ class InSonaGateway:
                         
                         self.devices[device["did"]] = device
                     
+                    # 解析场景信息
+                    for scene in response.get("scenes", []):
+                        self.scenes[scene["sceneId"]] = scene["name"]
+                    
                     # 处理等待中的命令响应
                     if uuid in self._waiting_commands:
                         expected_method, future = self._waiting_commands[uuid]
@@ -214,6 +232,7 @@ class InSonaGateway:
                 elif uuid in self._waiting_commands:
                     expected_method, future = self._waiting_commands[uuid]
                     if method == expected_method and not future.done():
+                        _LOGGER.debug("设置等待命令的结果: uuid=%s, method=%s, response=%s", uuid, method, response)
                         future.set_result(response)
                 
                 # 处理状态事件
@@ -227,6 +246,12 @@ class InSonaGateway:
                         "收到状态更新: did=%s, func=%s, value=%s, status=%s",
                         did, func, value, status
                     )
+                
+                # 处理meshchange事件，主动同步网关数据
+                elif method == "s.event" and response.get("evt") == "meshchange":
+                    _LOGGER.info("收到meshchange事件，主动同步网关数据")
+                    # 在后台任务中执行查询，避免阻塞事件循环
+                    asyncio.create_task(self.query_devices())
                     
                     # 更新设备状态
                     if did in self.devices:
@@ -393,4 +418,63 @@ class InSonaGateway:
             return True
         except Exception as err:
             _LOGGER.error("控制设备失败: %s", err)
-            return False 
+            return False
+    
+    async def query_scenes(self) -> None:
+        """查询场景列表。"""
+        uuid = random.randint(1000, 9999)
+        command = {
+            "version": 1,
+            "uuid": uuid,
+            "method": "c.query.scene"
+        }
+        
+        # 发送命令
+        _LOGGER.debug("发送查询场景指令: %s", command)
+        await self._send_command(command)
+        
+        # 等待响应
+        response = await self._wait_for_specific_response("s.query.scene", uuid, 15.0)  # 增加超时时间到15秒
+        _LOGGER.debug("收到查询场景响应: %s", response)
+        
+        # 检查响应是否为空
+        if response is None:
+            _LOGGER.error("查询场景失败: 收到空响应")
+            raise Exception("查询场景失败: 收到空响应")
+        
+        # 检查响应是否包含错误信息
+        if "error" in response:
+            _LOGGER.error("查询场景失败: 网关返回错误: %s", response["error"])
+            raise Exception(f"查询场景失败: 网关返回错误: {response['error']}")
+        
+        # 检查响应方法是否正确
+        if response.get("method") != "s.query.scene":
+            _LOGGER.error("查询场景失败: 收到意外的响应方法: %s", response.get("method"))
+            raise Exception(f"查询场景失败: 收到意外的响应方法: {response.get('method')}")
+        
+        # 解析场景信息
+        scenes = response.get("scenes", [])
+        if not scenes:
+            _LOGGER.warning("未获取到任何场景信息")
+        else:
+            for scene in scenes:
+                self.scenes[scene["sceneId"]] = scene["name"]
+            _LOGGER.info("成功获取到 %d 个场景", len(self.scenes))
+    
+    async def activate_scene(self, scene_id: int) -> bool:
+        """激活场景。"""
+        command = {
+            "version": 1,
+            "uuid": random.randint(1000, 9999),
+            "method": "c.control",
+            "action": SCENE_ACTION,
+            "value": [str(scene_id)],
+            "transition": 0
+        }
+        
+        try:
+            await self._send_command(command)
+            return True
+        except Exception as err:
+            _LOGGER.error("激活场景失败: %s", err)
+            return False
