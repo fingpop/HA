@@ -139,7 +139,7 @@ class InSonaCover(CoverEntity):
         # 发送停止命令，保持当前位置
         if len(self.device["value"]) > 1:
             current_position = self.device["value"][1]
-            await self.gateway.control_device(self.did, "level", [current_position])
+            await self.gateway.control_device(self.did, "curtainstop", [current_position])
     
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """设置窗帘位置。"""
